@@ -153,7 +153,10 @@ class JingDongCrawler(BaseCrawler):
         # print("一共{}页".format(page_total))
         print("------Crawling: ", detail_url)
         #  作者
-        author = self.driver.find_element_by_id('p-author').text
+        if self._is_element_exist(element='p-author'):
+            author = self.driver.find_element_by_id('p-author').text
+        else:
+            author = ''
 
         if self._is_element_exist():
             catalog_flag = True
@@ -170,7 +173,7 @@ class JingDongCrawler(BaseCrawler):
 
     def parse_book_detail_by_id(self, bookid):
         url = self.detail_url.format(bookid)
-        print(url)
+
         return self._parse_book_detail_by_url(url)
 
 
@@ -185,6 +188,12 @@ class JingDongCrawler(BaseCrawler):
         # # with open(save_path, 'w+') as fw:
         from tqdm import tqdm
         for index, row in tqdm(df.iterrows()):
+            # 检查数据库中存在
+            print("Attempting to get: ", row['id'])
+            res = db.find({"id": str(row['id'])})
+            if res.count() > 0:
+                print("--Already exist: ", row['id'])
+                continue
             author, summary, catalog = self.parse_book_detail_by_id(row['id'])
             db.insert({
                 "id": row['id'],
