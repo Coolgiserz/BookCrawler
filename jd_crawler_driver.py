@@ -114,7 +114,7 @@ class JingDongCrawler(BaseCrawler):
         with open(os.path.join(self.save_path, 'data_{}_{}.csv'.format(keyword, page)), 'w+') as fw:
             for i in range(len(ids)):
                 id = ids[i].get_attribute('data-sku')
-                title = titles[i].text
+                title = str(titles[i].text).replace('\n', '')
                 price = prices[i].text
                 # author = authors[i].get_attribute('title')
                 # org = publish_org[i].get_attribute('title')
@@ -145,31 +145,35 @@ class JingDongCrawler(BaseCrawler):
             time.sleep(2)
         except TimeoutException:
             print("{} timeout")
-        J_detail_content= WebDriverWait(self.driver, timeout=60, poll_frequency=5).until(
+        try:
+            J_detail_content= WebDriverWait(self.driver, timeout=60, poll_frequency=5).until(
             EC.presence_of_element_located((By.ID, 'J-detail-content')))
 
-        catalog_flag = False # 标记是否有明确目录结构
-        # page_total = self.driver.find_element_by_xpath('//div[@id="J_bottomPage"]/span[@class="p-skip"]/em/b').text
-        # print("一共{}页".format(page_total))
-        print("------Crawling: ", detail_url)
-        #  作者
-        if self._is_element_exist(element='p-author'):
-            author = self.driver.find_element_by_id('p-author').text
-        else:
-            author = ''
+            catalog_flag = False # 标记是否有明确目录结构
+            # page_total = self.driver.find_element_by_xpath('//div[@id="J_bottomPage"]/span[@class="p-skip"]/em/b').text
+            # print("一共{}页".format(page_total))
+            print("------Crawling: ", detail_url)
+            #  作者
+            if self._is_element_exist(element='p-author'):
+                author = self.driver.find_element_by_id('p-author').text
+            else:
+                author = ''
 
-        if self._is_element_exist():
-            catalog_flag = True
-            # 内容简介
+            if self._is_element_exist():
+                catalog_flag = True
+                # 内容简介
 
-            summary = self.driver.find_element_by_id('detail-tag-id-3').text
+                summary = self.driver.find_element_by_id('detail-tag-id-3').text
 
-            # 目录
-            catalog = self.driver.find_element_by_id('detail-tag-id-6').text
-        else:
-            summary = ''
-            catalog = ''
-        return str(author), str(summary), str(catalog)
+                # 目录
+                catalog = self.driver.find_element_by_id('detail-tag-id-6').text
+            else:
+                summary = J_detail_content.text
+                catalog = ''
+            return str(author), str(summary), str(catalog), catalog_flag
+        except:
+            print("----网页已删除: ", detail_url)
+            raise Exception
 
     def parse_book_detail_by_id(self, bookid):
         url = self.detail_url.format(bookid)
@@ -184,30 +188,36 @@ class JingDongCrawler(BaseCrawler):
 
         db = MongoDB()
         db.connect()
-        db.connectDB('JDbook', 'detail')
+        db.connectDB('JDbook', 'detail_test')
         # # with open(save_path, 'w+') as fw:
         from tqdm import tqdm
         for index, row in tqdm(df.iterrows()):
             # 检查数据库中存在
             print("Attempting to get: ", row['id'])
-            res = db.find({"id": str(row['id'])})
+            res = db.find({"$or": [{"id": str(row['id'])}, {"id": row['id']}]})
+
             if res.count() > 0:
                 print("--Already exist: ", row['id'])
                 continue
-            author, summary, catalog = self.parse_book_detail_by_id(row['id'])
-            db.insert({
-                "id": row['id'],
-                "author": author,
-                "summary": summary,
-                "catalog": catalog
-            })
+            try:
+                author, summary, catalog, catalog_flag = self.parse_book_detail_by_id(row['id'])
+                db.insert({
+                    "id": str(row['id']), # 统一存储id为字符串，否则可能既有字符串也有long
+                    "author": author,
+                    "summary": summary,
+                    "catalog": catalog,
+                    "catalog_flag": catalog_flag
+                })
             # sheet.write(index, 0, row['id'])
             # sheet.write(index, 1, author)
             # sheet.write(index, 2, summary)
             # sheet.write(index, 3, catalog)
             #
             #
-        print("===写入完成")
+                print("===写入完成")
+            except:
+                print("Something wrong happen!")
+                pass
 
         ######==== writing to excel
         # save_path = os.path.join(self.save_path, 'detail.xlsx')
@@ -229,8 +239,10 @@ class JingDongCrawler(BaseCrawler):
 
         # 解析书列表
 
-        # self.parse_book_list(keyword=keyword)
+        self.parse_book_list(keyword=keyword)
 
 
         # 解析单本书详情
         pass
+
+

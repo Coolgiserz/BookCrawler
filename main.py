@@ -41,8 +41,20 @@ if __name__ == '__main__':
     crawler = JingDongCrawler(driver=driver, save_path='result_1')
     # crawler.run(args.keyword)
     # crawler.parse_book_detail_by_id(bookid=11986338)#10028101759074，10024078052330,11986338
-    crawler.get_book_items()
+    import os
+    import glob
+    lis = glob.glob('result/data_{}*.csv'.format('口译'))
+    print("len: ", len(lis))
+    sorted_lis = sorted(lis)
+    for i in range(49, len(sorted_lis)):
+        print('----++++====',i, "-",  sorted_lis[i])
+        # crawler.get_book_items(csv_path='result/{}'.format(i))
+        crawler.get_book_items(csv_path=sorted_lis[i])
+
 
 """
 京东图书的目录和简介也不是统一格式的，部分图书目录处源码不同，甚至没有目录
+
+商品每天会更新，部分链接会下架，需要判断哪些还在
 """
+
