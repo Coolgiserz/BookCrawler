@@ -24,8 +24,9 @@ def init_webdriver():
 
 def parse_arg():
     parser = argparse.ArgumentParser(description='Book Crawler')
-    parser.add_argument('--keyword', type=str, default='口译',
+    parser.add_argument('--keyword', type=str, default='英汉汉英口译',
                         help='keyword of the book')
+    parser.add_argument('--collection', type=str, default='detail_yhky', help='collection to store the data' )
     return parser
 
 
@@ -38,15 +39,15 @@ if __name__ == '__main__':
     ]
     args = parse_arg().parse_args()
     driver = init_webdriver()
-    crawler = JingDongCrawler(driver=driver, save_path='result_1')
+    crawler = JingDongCrawler(driver=driver, save_path='result')
     # crawler.run(args.keyword)
     # crawler.parse_book_detail_by_id(bookid=11986338)#10028101759074，10024078052330,11986338
     import os
     import glob
-    lis = glob.glob('result/data_{}*.csv'.format('口译'))
+    lis = glob.glob('result/data_{}*.csv'.format('英汉汉英口译'))
     print("len: ", len(lis))
     sorted_lis = sorted(lis)
-    for i in range(49, len(sorted_lis)):
+    for i in range(0, len(sorted_lis)):
         print('----++++====',i, "-",  sorted_lis[i])
         # crawler.get_book_items(csv_path='result/{}'.format(i))
         crawler.get_book_items(csv_path=sorted_lis[i])

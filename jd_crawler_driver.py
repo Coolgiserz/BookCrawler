@@ -20,13 +20,14 @@ from utils.db import MongoDB
     目录，id: detail-tag-id-6、J-detail-content、
 """
 XPATH_CONSTANT = {
+    "BOOKNAME": '//div[@class="w"]//div[contains(@class,"sku-name")]',
     "GOODLIST": '//div[@id="J_goodsList"]/ul/li',
-    "TITLES": '//div[@id="J_goodsList"]/ul/li//div[@class="p-name"]/a',
+    "TITLES": '//div[@id="J_goodsList"]/ul/li//div[contains(@class,"p-name")]/a',#'//div[@id="J_goodsList"]/ul/li//div[@class="p-name"]/a'
     "PRICES": '//div[@id="J_goodsList"]//div[@class="p-price"]/strong/i',
     "AUTHORS": '//div[@id="J_goodsList"]//div/span[@class="p-bi-name"]/a',
     "DATES": '//div[@id="J_goodsList"]/ul/li//div/span[@class="p-bi-date"]',
     "ORGAN": '//div[@id="J_goodsList"]/ul/li//div/span[@class="p-bi-store"]/a',
-    "LINKS": '//div[@id="J_goodsList"]//div[@class="p-name"]/a',
+    "LINKS": '//div[@id="J_goodsList"]//div[contains(@class,"p-name")]/a',
 
 
 }
@@ -60,10 +61,13 @@ class JingDongCrawler(BaseCrawler):
         self.detail_url = 'https://item.jd.com/{}.html'
         self.driver = driver
 
-    def _is_element_exist(self, element='detail-tag-id-6'):
+    def _is_element_exist(self, element='detail-tag-id-6', by='id'):
         flag = True
         try:
-            self.driver.find_element_by_id(element)
+            if by == 'id':
+                self.driver.find_element_by_id(element)
+            elif by == 'xpath':
+                self.driver.find_element_by_xpath(element)
             return flag
         except:
             flag = False
@@ -153,6 +157,11 @@ class JingDongCrawler(BaseCrawler):
             # page_total = self.driver.find_element_by_xpath('//div[@id="J_bottomPage"]/span[@class="p-skip"]/em/b').text
             # print("一共{}页".format(page_total))
             print("------Crawling: ", detail_url)
+            # 书名
+            if self._is_element_exist(element=XPATH_CONSTANT["BOOKNAME"], by='xpath'):
+                book_name = self.driver.find_element_by_xpath(XPATH_CONSTANT["BOOKNAME"]).text
+            else:
+                book_name = ''
             #  作者
             if self._is_element_exist(element='p-author'):
                 author = self.driver.find_element_by_id('p-author').text
@@ -170,7 +179,7 @@ class JingDongCrawler(BaseCrawler):
             else:
                 summary = J_detail_content.text
                 catalog = ''
-            return str(author), str(summary), str(catalog), catalog_flag
+            return str(book_name), str(author), str(summary), str(catalog), catalog_flag
         except:
             print("----网页已删除: ", detail_url)
             raise Exception
@@ -188,7 +197,7 @@ class JingDongCrawler(BaseCrawler):
 
         db = MongoDB()
         db.connect()
-        db.connectDB('JDbook', 'detail_test')
+        db.connectDB('JDbook', 'detail_yhhyky')
         # # with open(save_path, 'w+') as fw:
         from tqdm import tqdm
         for index, row in tqdm(df.iterrows()):
@@ -200,20 +209,15 @@ class JingDongCrawler(BaseCrawler):
                 print("--Already exist: ", row['id'])
                 continue
             try:
-                author, summary, catalog, catalog_flag = self.parse_book_detail_by_id(row['id'])
+                book_name, author, summary, catalog, catalog_flag = self.parse_book_detail_by_id(row['id'])
                 db.insert({
                     "id": str(row['id']), # 统一存储id为字符串，否则可能既有字符串也有long
+                    "book_name": book_name,
                     "author": author,
                     "summary": summary,
                     "catalog": catalog,
                     "catalog_flag": catalog_flag
                 })
-            # sheet.write(index, 0, row['id'])
-            # sheet.write(index, 1, author)
-            # sheet.write(index, 2, summary)
-            # sheet.write(index, 3, catalog)
-            #
-            #
                 print("===写入完成")
             except:
                 print("Something wrong happen!")
@@ -239,7 +243,7 @@ class JingDongCrawler(BaseCrawler):
 
         # 解析书列表
 
-        self.parse_book_list(keyword=keyword)
+        self.parse_book_list(keyword=keyword, page=5)
 
 
         # 解析单本书详情
